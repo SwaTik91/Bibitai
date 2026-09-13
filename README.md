@@ -22,14 +22,17 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 cp config.example.yaml config.yaml
 
+bibitai test
 bibitai backtest --demo
+bibitai paper --offline
 bibitai doctor
-bibitai paper --once
 ```
 
-`paper` берёт публичные цены Binance и исполняет ордера локально. Состояние пишется в `data/paper-state.json`.
+`bibitai test` — офлайн-прогон без ключей и без ордеров на бирже.
 
-Если `doctor` или `paper` отвечают HTTP 451, IP заблокирован правилами Binance. `backtest --demo` работает офлайн.
+`paper` без `--offline` берёт публичные цены Binance и исполняет ордера локально. Состояние пишется в `data/paper-state.json`.
+
+Если `doctor` или `paper` отвечают HTTP 451, IP заблокирован правилами Binance. `bibitai test` и `backtest --demo` работают офлайн.
 
 Ключи биржи для paper не нужны. Если будете подключать live позже — только Spot, без withdraw, с IP whitelist. Файл `.env` не коммитить.
 

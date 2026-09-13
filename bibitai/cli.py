@@ -31,6 +31,10 @@ def main(argv: list[str] | None = None) -> int:
 
     paper = sub.add_parser("paper", help="Live public prices, simulated orders")
     paper.add_argument("--once", action="store_true", help="Single tick then exit")
+    paper.add_argument("--offline", action="store_true", help="Synthetic market, no Binance")
+
+    test = sub.add_parser("test", help="Offline paper run, no real orders")
+    test.add_argument("--bars", type=int, default=180)
 
     sub.add_parser("doctor", help="Check public Binance connectivity")
 
@@ -50,6 +54,9 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "paper":
             return _paper(args, config)
+
+        if args.command == "test":
+            return _test(args, config)
     except BinanceError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -97,7 +104,68 @@ def _print_report(name: str, report) -> None:
     print(json.dumps(payload, indent=2))
 
 
+def _test(args: argparse.Namespace, config) -> int:
+    print(
+        json.dumps(
+            {
+                "mode": "test",
+                "real_orders": False,
+                "exchange": None,
+                "note": "Paper fills only. No Binance orders are sent.",
+            }
+        )
+    )
+    ranging = run_backtest(
+        ranging_sine_candles(Decimal("100000"), 240, Decimal("2500")),
+        config=config,
+    )
+    trend = run_backtest(
+        trending_down_candles(Decimal("100000"), 180, Decimal("15000")),
+        config=config,
+    )
+    _print_report("ranging-sine", ranging)
+    _print_report("trending-down", trend)
+    ticks = run_offline_paper(config, bars=args.bars)
+    last = ticks[-1] if ticks else {}
+    print(json.dumps({"offline_paper": last}, indent=2))
+    return 0
+
+
+def run_offline_paper(config, bars: int = 180) -> list[dict]:
+    candles = ranging_sine_candles(Decimal("100000"), bars, Decimal("2500"))
+    broker = PaperBroker(quote=config.paper.quote, base=config.paper.base, fee=config.strategy.maker_fee)
+    engine = BotEngine(broker=broker, config=config)
+    ticks: list[dict] = []
+    for index in range(len(candles)):
+        price = candles[index].close
+        snapshot = engine.on_candles(candles[: index + 1], last=price)
+        ticks.append(
+            {
+                "bar": index,
+                "price": str(price),
+                "regime": None if snapshot.regime is None else snapshot.regime.value,
+                "decision": None if snapshot.decision is None else snapshot.decision.value,
+                "equity": str(broker.equity(price)),
+                "base": str(broker.base),
+                "quote": str(broker.quote),
+                "open_orders": len(broker.open_orders()),
+                "fills": len(snapshot.fills),
+                "stopped": snapshot.stopped,
+                "real_orders": False,
+            }
+        )
+    return ticks
+
+
 def _paper(args: argparse.Namespace, config) -> int:
+    if args.offline:
+        ticks = run_offline_paper(config, bars=180)
+        for tick in ticks[:: max(1, len(ticks) // 8)]:
+            print(json.dumps(tick))
+        if ticks:
+            print(json.dumps(ticks[-1], indent=2))
+        return 0
+
     client = BinanceClient()
     broker = PaperBroker(quote=config.paper.quote, base=config.paper.base, fee=config.strategy.maker_fee)
     engine = BotEngine(broker=broker, config=config)
