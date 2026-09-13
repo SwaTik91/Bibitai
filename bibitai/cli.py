@@ -8,7 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from bibitai.backtest import run_backtest
-from bibitai.binance_client import BinanceClient
+from bibitai.binance_client import BinanceClient, BinanceError
 from bibitai.config import load_config
 from bibitai.engine import BotEngine
 from bibitai.markets import ranging_sine_candles, trending_down_candles
@@ -37,18 +37,22 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     config = load_config(args.config)
 
-    if args.command == "doctor":
-        client = BinanceClient()
-        client.ping()
-        price = client.get_price(config.symbol)
-        print(f"ok {config.symbol} last={price}")
-        return 0
+    try:
+        if args.command == "doctor":
+            client = BinanceClient()
+            client.ping()
+            price = client.get_price(config.symbol)
+            print(f"ok {config.symbol} last={price}")
+            return 0
 
-    if args.command == "backtest":
-        return _backtest(args, config)
+        if args.command == "backtest":
+            return _backtest(args, config)
 
-    if args.command == "paper":
-        return _paper(args, config)
+        if args.command == "paper":
+            return _paper(args, config)
+    except BinanceError as exc:
+        print(exc, file=sys.stderr)
+        return 2
 
     return 1
 
@@ -62,7 +66,7 @@ def _backtest(args: argparse.Namespace, config) -> int:
         return 0
 
     ranging = run_backtest(
-        ranging_sine_candles(Decimal("100000"), 240, Decimal("1200")),
+        ranging_sine_candles(Decimal("100000"), 240, Decimal("2500")),
         config=config,
     )
     trend = run_backtest(

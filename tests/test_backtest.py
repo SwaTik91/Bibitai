@@ -10,7 +10,7 @@ def test_ranging_market_does_not_blow_up() -> None:
         candles=ranging_sine_candles(
             start=Decimal("100000"),
             bars=240,
-            amplitude=Decimal("1200"),
+                amplitude=Decimal("2500"),
         ),
         config=load_default_config(),
         quote=Decimal("10000"),

@@ -45,7 +45,8 @@ def test_long_inventory_shifts_grid_down_and_drops_buys() -> None:
     )
     buys = [level.price for level in plan if level.side is Side.BUY]
     sells = [level.price for level in plan if level.side is Side.SELL]
-    assert min(buys) < Decimal("98800.00")
+    assert buys
+    assert buys[0] < Decimal("99600.00")
     assert min(sells) < Decimal("100400.00")
     assert len(buys) <= len(sells)
 

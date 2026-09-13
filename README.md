@@ -29,6 +29,8 @@ bibitai paper --once
 
 `paper` берёт публичные цены Binance и исполняет ордера локально. Состояние пишется в `data/paper-state.json`.
 
+Если `doctor` или `paper` отвечают HTTP 451, IP заблокирован правилами Binance. `backtest --demo` работает офлайн.
+
 Ключи биржи для paper не нужны. Если будете подключать live позже — только Spot, без withdraw, с IP whitelist. Файл `.env` не коммитить.
 
 ## Тесты

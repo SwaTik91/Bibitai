@@ -36,7 +36,8 @@ def ranging_sine_candles(
         high = max(previous, price)
         # Give each bar a little body so grid levels inside the swing can fill.
         swing = abs(price - previous)
-        pad = max(swing / Decimal("2"), Decimal("40"))
+        # Wicks must be wide enough to reach the fee-safe first grid step.
+        pad = max(swing / Decimal("2"), start * Decimal("0.004"))
         candles.append(_candle(index, price, low - pad, high + pad))
         previous = price
     return candles

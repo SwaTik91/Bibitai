@@ -82,6 +82,10 @@ class BinanceClient:
         url = f"{self.base_url}{path}"
         with httpx.Client(timeout=self.timeout) as client:
             response = client.request(method, url, params=query, headers=headers)
+        if response.status_code == 451:
+            raise BinanceError(
+                "Binance blocked this IP (HTTP 451). Paper/doctor need a location Binance allows; backtest --demo works offline."
+            )
         if response.status_code >= 400:
             raise BinanceError(f"Binance {response.status_code}: {response.text}")
         if not response.content:
