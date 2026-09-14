@@ -1,0 +1,35 @@
+symbol: BTCUSDT
+interval: 1h
+quote_asset: USDT
+
+# Starting paper balances. Live/testnet use the exchange account.
+paper:
+  quote: "10000"
+  base: "0"
+
+strategy:
+  ema_fast: 20
+  ema_slow: 50
+  atr_period: 14
+  range_threshold: 1.0
+  trend_threshold: 2.0
+  grid_levels: 4
+  spacing_atr_mult: 0.6
+  min_spacing_pct: "0.002"
+  inventory_shift_levels: 2.0
+  quote_reserve_pct: 0.20
+  maker_fee: "0.001"
+  seed_inventory_pct: 0.20
+
+risk:
+  max_inventory_pct: 0.35
+  max_daily_loss_pct: 0.02
+  max_drawdown_pct: 0.06
+  crash_atr_mult: 4.0
+  pause_candles_after_crash: 6
+  min_notional: "10"
+
+runtime:
+  poll_seconds: 5
+  kline_refresh_seconds: 30
+  state_dir: data
