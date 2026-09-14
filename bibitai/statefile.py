@@ -24,6 +24,7 @@ def save_paper(path: Path, engine: BotEngine) -> None:
         "last_plan_mid": None if engine.state.last_plan_mid is None else str(engine.state.last_plan_mid),
         "last_regime": None if engine.state.last_regime is None else engine.state.last_regime.value,
         "fill_count": len(engine.state.fills),
+        "seeded": engine.state.seeded,
         "orders": [
             {
                 "order_id": order.order_id,
@@ -73,3 +74,4 @@ def load_paper(path: Path, engine: BotEngine) -> None:
         engine.state.last_plan_mid = Decimal(payload["last_plan_mid"])
     if payload.get("last_regime"):
         engine.state.last_regime = Regime(payload["last_regime"])
+    engine.state.seeded = bool(payload.get("seeded", False))

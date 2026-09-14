@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from bibitai.config import load_default_config
 from bibitai.engine import BotEngine
-from bibitai.markets import flat_candles
+from bibitai.markets import flat_candles, ranging_sine_candles
 from bibitai.models import Candle, Side
 from bibitai.paper import PaperBroker
 
@@ -39,3 +39,21 @@ def test_same_candle_does_not_churn_open_orders() -> None:
     engine.on_candles(warmup, last=Decimal("100080"))
     assert {order.order_id for order in broker.open_orders()} == first
     assert sum(1 for order in broker.orders() if order.status == "canceled") == 0
+
+
+def test_ranging_seeds_btc_sleeve_once_and_places_sells() -> None:
+    config = load_default_config()
+    broker = PaperBroker(quote=Decimal("10000"), base=Decimal("0"), fee=Decimal("0.001"))
+    engine = BotEngine(broker=broker, config=config)
+    candles = ranging_sine_candles(Decimal("100000"), 120, Decimal("2500"))
+    for index in range(len(candles)):
+        engine.on_candles(candles[: index + 1], last=candles[index].close)
+        if engine.state.seeded:
+            break
+    assert engine.state.seeded
+    assert broker.base > 0
+    engine.on_candles(candles[: index + 1], last=candles[index].close)
+    seeds = [order for order in broker.orders() if order.client_id.startswith("bibitai-seed")]
+    assert engine.state.seeded
+    assert len(seeds) == 1
+    assert any(order.side is Side.SELL for order in broker.orders())

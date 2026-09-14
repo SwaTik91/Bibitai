@@ -19,6 +19,7 @@ strategy:
   inventory_shift_levels: 2.0
   quote_reserve_pct: 0.20
   maker_fee: "0.001"
+  seed_inventory_pct: 0.20
 
 risk:
   max_inventory_pct: 0.35

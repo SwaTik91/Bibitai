@@ -25,6 +25,7 @@ class StrategyConfig(BaseModel):
     inventory_shift_levels: float = 2.0
     quote_reserve_pct: float = 0.20
     maker_fee: Decimal = Decimal("0.001")
+    seed_inventory_pct: float = 0.20
 
 
 class RiskConfig(BaseModel):

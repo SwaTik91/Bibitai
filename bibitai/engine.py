@@ -28,6 +28,7 @@ class EngineSnapshot:
     last_candle_open_time: int | None = None
     last_plan_mid: Decimal | None = None
     last_regime: Regime | None = None
+    seeded: bool = False
 
 
 class BotEngine:
@@ -129,6 +130,12 @@ class BotEngine:
             self.broker.cancel_open()
             return self.state
 
+        seeded_now = self._maybe_seed(price, equity, regime)
+        if seeded_now:
+            new_fills.append(seeded_now)
+            self.state.fills.append(seeded_now)
+            self.state.max_base = max(self.state.max_base, self.broker.base)
+
         spacing = self.planner.spacing(price, atr_decimal)
         moved = (
             self.state.last_plan_mid is None
@@ -158,6 +165,26 @@ class BotEngine:
         self.state.last_plan_mid = price
         self.state.last_regime = regime
         return self.state
+
+    def _maybe_seed(self, price: Decimal, equity: Decimal, regime: Regime) -> Fill | None:
+        if self.state.seeded:
+            return None
+        if self.broker.base > 0:
+            self.state.seeded = True
+            return None
+        if regime is not Regime.RANGING:
+            return None
+        pct = Decimal(str(self.config.strategy.seed_inventory_pct))
+        if pct <= 0 or price <= 0:
+            self.state.seeded = True
+            return None
+        quantity = quantize((equity * pct) / price, self.config.step_size)
+        if quantity * price < self.config.risk.min_notional:
+            return None
+        fill = self.broker.market_buy(price, quantity)
+        if fill:
+            self.state.seeded = True
+        return fill
 
     def _roll_day(self, candle: Candle, equity: Decimal) -> None:
         key = candle.open_time // 86_400_000 if candle.open_time > 10_000_000 else 0

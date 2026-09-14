@@ -45,6 +45,27 @@ class PaperBroker:
     def open_orders(self) -> list[Order]:
         return [order for order in self._orders.values() if order.status == "open"]
 
+    def market_buy(self, price: Decimal, quantity: Decimal) -> Fill | None:
+        cost = price * quantity
+        fee = cost * self.fee
+        if quantity <= 0 or self.quote < cost + fee:
+            return None
+        self._seq += 1
+        order_id = str(self._seq)
+        order = Order(
+            order_id=order_id,
+            client_id=f"bibitai-seed-{order_id}",
+            side=Side.BUY,
+            price=price,
+            quantity=quantity,
+            filled_qty=quantity,
+            status="filled",
+        )
+        self._orders[order_id] = order
+        self.quote -= cost + fee
+        self.base += quantity
+        return Fill(order_id, Side.BUY, price, quantity, fee)
+
     def mark(self, last: Decimal) -> list[Fill]:
         fills: list[Fill] = []
         for order in self._orders.values():
