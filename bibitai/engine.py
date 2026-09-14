@@ -25,6 +25,9 @@ class EngineSnapshot:
     fills: list[Fill] = field(default_factory=list)
     max_base: Decimal = Decimal("0")
     max_drawdown_pct: Decimal = Decimal("0")
+    last_candle_open_time: int | None = None
+    last_plan_mid: Decimal | None = None
+    last_regime: Regime | None = None
 
 
 class BotEngine:
@@ -56,8 +59,12 @@ class BotEngine:
             return self.state
         latest = candles[-1]
         price = last if last is not None else latest.close
+        new_bar = self.state.last_candle_open_time != latest.open_time
 
-        new_fills = self.broker.mark_candle(latest.low, latest.high)
+        new_fills: list[Fill] = []
+        if new_bar:
+            new_fills.extend(self.broker.mark_candle(latest.low, latest.high))
+            self.state.last_candle_open_time = latest.open_time
         new_fills.extend(self.broker.mark(price))
         self.state.fills.extend(new_fills)
         self.state.max_base = max(self.state.max_base, self.broker.base)
@@ -112,13 +119,29 @@ class BotEngine:
             return self.state
 
         if self.state.pause_remaining > 0:
-            self.state.pause_remaining -= 1
+            if new_bar:
+                self.state.pause_remaining -= 1
             self.broker.cancel_open()
             return self.state
 
         if decision is RiskDecision.PAUSE_CRASH:
             self.state.pause_remaining = self.config.risk.pause_candles_after_crash
             self.broker.cancel_open()
+            return self.state
+
+        spacing = self.planner.spacing(price, atr_decimal)
+        moved = (
+            self.state.last_plan_mid is None
+            or abs(price - self.state.last_plan_mid) >= spacing * Decimal("0.5")
+        )
+        should_replan = (
+            new_bar
+            or bool(new_fills)
+            or not self.broker.open_orders()
+            or regime != self.state.last_regime
+            or moved
+        )
+        if not should_replan:
             return self.state
 
         plan = self.planner.plan(
@@ -132,6 +155,8 @@ class BotEngine:
         if decision is RiskDecision.BLOCK_BUYS:
             plan = [level for level in plan if level.side is Side.SELL]
         self._reconcile(plan)
+        self.state.last_plan_mid = price
+        self.state.last_regime = regime
         return self.state
 
     def _roll_day(self, candle: Candle, equity: Decimal) -> None:

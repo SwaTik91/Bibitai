@@ -37,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     test.add_argument("--bars", type=int, default=180)
 
     sub.add_parser("doctor", help="Check public Binance connectivity")
+    sub.add_parser("status", help="Show compact paper state")
 
     args = parser.parse_args(argv)
     config = load_config(args.config)
@@ -57,6 +58,9 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "test":
             return _test(args, config)
+
+        if args.command == "status":
+            return _status(config)
     except BinanceError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -102,6 +106,31 @@ def _print_report(name: str, report) -> None:
         "notes": report.notes,
     }
     print(json.dumps(payload, indent=2))
+
+
+def _status(config) -> int:
+    path = Path(config.runtime.state_dir) / "paper-state.json"
+    if not path.exists():
+        print(json.dumps({"error": f"missing {path}"}))
+        return 1
+    payload = json.loads(path.read_text())
+    orders = payload.get("orders", [])
+    print(
+        json.dumps(
+            {
+                "quote": payload.get("quote"),
+                "base": payload.get("base"),
+                "stopped": payload.get("stopped"),
+                "fill_count": payload.get("fill_count"),
+                "regime": payload.get("last_regime"),
+                "last_plan_mid": payload.get("last_plan_mid"),
+                "open_orders": [order for order in orders if order.get("status") == "open"],
+                "filled_orders": [order for order in orders if order.get("status") == "filled"],
+            },
+            indent=2,
+        )
+    )
+    return 0
 
 
 def _test(args: argparse.Namespace, config) -> int:
